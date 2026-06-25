@@ -1,6 +1,7 @@
 # Spam SMS Detector v3.0
 
-**CodSoft Machine Learning Internship — Task 4**
+**CodSoft Machine Learning Internship — Task 1**
+DEMO LIVE LINK:-https://web-production-643ed.up.railway.app/
 
 A 3-layer spam SMS detection system combining **keyword-based rules**, **logistic regression**, and a **low confidence threshold** to achieve ~98% accuracy.
 
