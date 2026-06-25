@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spam SMS Detector</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 40px;
+            max-width: 640px;
+            width: 100%;
+            box-shadow: 0 25px 60px rgba(0,0,0,0.5);
+        }
+        h1 {
+            color: #fff;
+            font-size: 28px;
+            text-align: center;
+            margin-bottom: 4px;
+        }
+        .subtitle {
+            color: rgba(255,255,255,0.5);
+            text-align: center;
+            font-size: 14px;
+            margin-bottom: 28px;
+        }
+        textarea {
+            width: 100%;
+            padding: 16px;
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 12px;
+            background: rgba(255,255,255,0.06);
+            color: #fff;
+            font-size: 16px;
+            resize: vertical;
+            min-height: 120px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        textarea:focus { border-color: #6c63ff; }
+        textarea::placeholder { color: rgba(255,255,255,0.3); }
+        button {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #6c63ff, #e040fb);
+            color: #fff;
+            font-size: 17px;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 14px;
+            transition: transform 0.15s, opacity 0.15s;
+        }
+        button:hover { transform: translateY(-1px); opacity: 0.92; }
+        button:active { transform: translateY(0); }
+        button:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        .result {
+            margin-top: 24px;
+            padding: 20px;
+            border-radius: 16px;
+            display: none;
+        }
+        .result.spam { background: rgba(255, 50, 50, 0.12); border: 1px solid rgba(255, 50, 50, 0.3); }
+        .result.legit { background: rgba(50, 255, 50, 0.08); border: 1px solid rgba(50, 255, 50, 0.2); }
+        .result .badge {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .result .badge.spam { color: #ff4757; }
+        .result .badge.legit { color: #2ed573; }
+        .result .detail {
+            color: rgba(255,255,255,0.6);
+            font-size: 14px;
+            margin-top: 4px;
+        }
+        .result .highlight {
+            color: rgba(255,255,255,0.9);
+            font-weight: 600;
+        }
+
+        .progress-bar {
+            margin-top: 12px;
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.08);
+            overflow: hidden;
+        }
+        .progress-bar .fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        .progress-bar .fill.spam { background: linear-gradient(90deg, #ff6b6b, #ff4757); }
+        .progress-bar .fill.legit { background: linear-gradient(90deg, #7bed9f, #2ed573); }
+
+        .spinner {
+            display: none;
+            text-align: center;
+            margin-top: 20px;
+            color: rgba(255,255,255,0.5);
+        }
+        .spinner.active { display: block; }
+
+        .bulk-section {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        .bulk-section summary {
+            color: rgba(255,255,255,0.5);
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .bulk-section input[type="file"] {
+            color: rgba(255,255,255,0.6);
+            margin-top: 12px;
+            font-size: 14px;
+        }
+        .bulk-section input[type="text"] {
+            width: 100%;
+            padding: 10px 14px;
+            margin-top: 8px;
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 8px;
+            background: rgba(255,255,255,0.06);
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+        }
+        .bulk-section input[type="text"]:focus { border-color: #6c63ff; }
+        .bulk-section input[type="text"]::placeholder { color: rgba(255,255,255,0.3); }
+
+        .bulk-results {
+            margin-top: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .bulk-results .item {
+            padding: 8px 12px;
+            margin: 4px 0;
+            border-radius: 8px;
+            font-size: 13px;
+            color: rgba(255,255,255,0.7);
+        }
+        .bulk-results .item.spam { background: rgba(255,50,50,0.1); }
+        .bulk-results .item.legit { background: rgba(50,255,50,0.06); }
+
+        .history-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.08);
+        }
+        .history-section summary {
+            color: rgba(255,255,255,0.5);
+            cursor: pointer;
+            font-size: 14px;
+        }
+        #history-list {
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        #history-list .entry {
+            padding: 6px 10px;
+            margin: 3px 0;
+            border-radius: 6px;
+            font-size: 12px;
+            color: rgba(255,255,255,0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Spam SMS Detector</h1>
+        <p class="subtitle">3-layer detection &mdash; keywords + ML + low threshold</p>
+
+        <textarea id="message" placeholder="Paste an SMS message here..."></textarea>
+        <button id="check-btn" onclick="checkMessage()">Check Message</button>
+
+        <div class="spinner" id="spinner">Analyzing...</div>
+
+        <div class="result" id="result">
+            <div class="badge" id="badge"></div>
+            <div class="detail" id="reason"></div>
+            <div class="detail">
+                Spam probability: <span class="highlight" id="spam-pct"></span> &middot;
+                Legit probability: <span class="highlight" id="ham-pct"></span>
+            </div>
+            <div class="progress-bar">
+                <div class="fill" id="progress-fill"></div>
+            </div>
+        </div>
+
+        <details class="history-section">
+            <summary>Session History</summary>
+            <div id="history-list"></div>
+        </details>
+
+        <details class="bulk-section">
+            <summary>Bulk Scan (CSV or TXT)</summary>
+            <input type="file" id="bulk-file" accept=".csv,.txt">
+            <input type="text" id="bulk-column" placeholder="Column name (for CSV, default: message)">
+            <button id="bulk-btn" onclick="bulkScan()" style="margin-top:10px">Scan File</button>
+            <div class="bulk-results" id="bulk-results"></div>
+        </details>
+    </div>
+
+    <script>
+        let history = [];
+
+        function checkMessage() {
+            const msg = document.getElementById('message').value.trim();
+            if (!msg) return;
+
+            const btn = document.getElementById('check-btn');
+            const spinner = document.getElementById('spinner');
+            const result = document.getElementById('result');
+
+            btn.disabled = true;
+            spinner.classList.add('active');
+            result.style.display = 'none';
+
+            const form = new FormData();
+            form.append('message', msg);
+
+            fetch('/detect', { method: 'POST', body: form })
+                .then(r => r.json())
+                .then(data => {
+                    spinner.classList.remove('active');
+                    btn.disabled = false;
+                    showResult(data);
+                    history.unshift(data);
+                    if (history.length > 20) history.pop();
+                    renderHistory();
+                })
+                .catch(() => {
+                    spinner.classList.remove('active');
+                    btn.disabled = false;
+                });
+        }
+
+        function showResult(data) {
+            const result = document.getElementById('result');
+            const badge = document.getElementById('badge');
+            const reason = document.getElementById('reason');
+            const spamPct = document.getElementById('spam-pct');
+            const hamPct = document.getElementById('ham-pct');
+            const fill = document.getElementById('progress-fill');
+
+            const isSpam = data.is_spam;
+            result.className = 'result ' + (isSpam ? 'spam' : 'legit');
+            badge.className = 'badge ' + (isSpam ? 'spam' : 'legit');
+            badge.textContent = isSpam ? 'SPAM DETECTED' : 'Looks Legit';
+            reason.textContent = 'Detected by: ' + data.reason;
+            spamPct.textContent = data.spam_probability + '%';
+            hamPct.textContent = data.ham_probability + '%';
+
+            fill.className = 'fill ' + (isSpam ? 'spam' : 'legit');
+            fill.style.width = data.confidence + '%';
+
+            result.style.display = 'block';
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('history-list');
+            list.innerHTML = history.map((h, i) =>
+                `<div class="entry" style="color: ${h.is_spam ? '#ff4757' : '#2ed573'}">${i+1}. [${h.is_spam ? 'SPAM' : 'LEGIT'}] ${h.confidence}% &mdash; ${h.message.substring(0, 60)}</div>`
+            ).join('');
+        }
+
+        function bulkScan() {
+            const file = document.getElementById('bulk-file').files[0];
+            if (!file) return;
+
+            const form = new FormData();
+            form.append('file', file);
+            form.append('column', document.getElementById('bulk-column').value || 'message');
+
+            const btn = document.getElementById('bulk-btn');
+            btn.disabled = true;
+            btn.textContent = 'Scanning...';
+
+            fetch('/bulk', { method: 'POST', body: form })
+                .then(r => r.json())
+                .then(data => {
+                    btn.disabled = false;
+                    btn.textContent = 'Scan File';
+                    const div = document.getElementById('bulk-results');
+                    div.innerHTML = `<div style="color:rgba(255,255,255,0.7);margin-bottom:8px">Total: ${data.total} | Spam: ${data.spam_count} | Legit: ${data.legit_count}</div>`;
+                    data.results.forEach(r => {
+                        div.innerHTML += `<div class="item ${r.is_spam ? 'spam' : 'legit'}">[${r.is_spam ? 'SPAM' : 'LEGIT'}] ${r.confidence}% &mdash; ${r.message.substring(0, 80)}</div>`;
+                    });
+                })
+                .catch(() => {
+                    btn.disabled = false;
+                    btn.textContent = 'Scan File';
+                });
+        }
+
+        document.getElementById('message').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && e.ctrlKey) checkMessage();
+        });
+    </script>
+</body>
+</html>
